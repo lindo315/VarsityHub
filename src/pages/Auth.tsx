@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -14,38 +14,95 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GraduationCap, Mail, Lock, User, UserPlus, LogIn } from "lucide-react";
+import {
+  GraduationCap,
+  Mail,
+  Lock,
+  User,
+  UserPlus,
+  LogIn,
+  Eye,
+  EyeOff,
+  Loader2,
+} from "lucide-react";
 
 export default function Auth() {
   const [activeTab, setActiveTab] = useState("signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Form states for sign in
+  const [signInEmail, setSignInEmail] = useState("");
+  const [signInPassword, setSignInPassword] = useState("");
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  // Form states for sign up
   const [fullName, setFullName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [signUpEmail, setSignUpEmail] = useState("");
+  const [signUpPassword, setSignUpPassword] = useState("");
+  const [faculty, setFaculty] = useState("");
+  const [studyYear, setStudyYear] = useState("1");
+  const [isSigningUp, setIsSigningUp] = useState(false);
+
+  // Form validation states
+  const [signInErrors, setSignInErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
+  const [signUpErrors, setSignUpErrors] = useState<{
+    fullName?: string;
+    email?: string;
+    password?: string;
+  }>({});
+
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Reset errors when changing tabs
+  useEffect(() => {
+    setSignInErrors({});
+    setSignUpErrors({});
+  }, [activeTab]);
+
+  // Handle sign in form submission
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please enter both email and password.",
-      });
+
+    // Clear previous errors
+    const errors: { email?: string; password?: string } = {};
+
+    // Validate form
+    if (!signInEmail) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signInEmail)) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    if (!signInPassword) {
+      errors.password = "Password is required";
+    }
+
+    // If there are errors, display them and don't submit
+    if (Object.keys(errors).length > 0) {
+      setSignInErrors(errors);
       return;
     }
 
-    setIsLoading(true);
+    // Form is valid, proceed with sign in
+    setIsSigningIn(true);
+
     try {
-      await signIn(email, password);
+      await signIn(signInEmail, signInPassword);
+
       toast({
         title: "Welcome back!",
         description: "You've successfully signed in.",
       });
+
       navigate("/");
     } catch (error) {
+      console.error("Sign in error:", error);
+
       toast({
         variant: "destructive",
         title: "Sign in failed",
@@ -55,39 +112,85 @@ export default function Auth() {
             : "Incorrect email or password.",
       });
     } finally {
-      setIsLoading(false);
+      setIsSigningIn(false);
     }
   };
 
+  // Handle sign up form submission
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !fullName) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please fill in all fields.",
-      });
+
+    console.log("Sign up form submitted");
+
+    // Clear previous errors
+    const errors: {
+      fullName?: string;
+      email?: string;
+      password?: string;
+    } = {};
+
+    // Validate form
+    if (!fullName || fullName.trim().length < 2) {
+      errors.fullName = "Full name must be at least 2 characters";
+    }
+
+    if (!signUpEmail) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signUpEmail)) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    if (!signUpPassword) {
+      errors.password = "Password is required";
+    } else if (signUpPassword.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+    }
+
+    // If there are errors, display them and don't submit
+    if (Object.keys(errors).length > 0) {
+      console.log("Form validation errors:", errors);
+      setSignUpErrors(errors);
       return;
     }
 
-    if (password.length < 6) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Password must be at least 6 characters long.",
-      });
-      return;
-    }
+    // Form is valid, proceed with sign up
+    setIsSigningUp(true);
+    console.log("Starting sign up process");
 
-    setIsLoading(true);
     try {
-      await signUp(email, password, { full_name: fullName });
+      // Prepare user metadata
+      const userData = {
+        full_name: fullName,
+        faculty: faculty || undefined,
+        study_year: studyYear ? parseInt(studyYear) : undefined,
+      };
+
+      console.log("Signing up with data:", {
+        email: signUpEmail,
+        password: "[REDACTED]",
+        userData,
+      });
+
+      // Call the signUp function
+      await signUp(signUpEmail, signUpPassword, userData);
+
+      console.log("Sign up successful");
+
       toast({
         title: "Account created!",
         description: "Please check your email to confirm your account.",
       });
+
+      // Reset form and switch to sign in tab
+      setFullName("");
+      setSignUpEmail("");
+      setSignUpPassword("");
+      setFaculty("");
+      setStudyYear("1");
       setActiveTab("signin");
     } catch (error) {
+      console.error("Sign up error:", error);
+
       toast({
         variant: "destructive",
         title: "Sign up failed",
@@ -97,8 +200,12 @@ export default function Auth() {
             : "An error occurred during sign up.",
       });
     } finally {
-      setIsLoading(false);
+      setIsSigningUp(false);
     }
+  };
+
+  const toggleShowPassword = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -166,11 +273,17 @@ export default function Auth() {
                       <Input
                         id="email"
                         type="email"
+                        value={signInEmail}
+                        onChange={(e) => setSignInEmail(e.target.value)}
                         placeholder="your.email@varsity.edu"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
+                        disabled={isSigningIn}
+                        className={signInErrors.email ? "border-red-500" : ""}
                       />
+                      {signInErrors.email && (
+                        <p className="text-sm font-medium text-red-500">
+                          {signInErrors.email}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -190,22 +303,55 @@ export default function Auth() {
                           Forgot password?
                         </Button>
                       </div>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          value={signInPassword}
+                          onChange={(e) => setSignInPassword(e.target.value)}
+                          disabled={isSigningIn}
+                          className={
+                            signInErrors.password ? "border-red-500" : ""
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full"
+                          onClick={toggleShowPassword}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                          <span className="sr-only">
+                            {showPassword ? "Hide password" : "Show password"}
+                          </span>
+                        </Button>
+                      </div>
+                      {signInErrors.password && (
+                        <p className="text-sm font-medium text-red-500">
+                          {signInErrors.password}
+                        </p>
+                      )}
                     </div>
                   </CardContent>
                   <CardFooter>
                     <Button
                       type="submit"
                       className="w-full"
-                      disabled={isLoading}
+                      disabled={isSigningIn}
                     >
-                      {isLoading ? "Signing in..." : "Sign In"}
+                      {isSigningIn ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Signing in...
+                        </>
+                      ) : (
+                        "Sign In"
+                      )}
                     </Button>
                   </CardFooter>
                 </form>
@@ -232,11 +378,19 @@ export default function Auth() {
                       <Input
                         id="fullName"
                         type="text"
-                        placeholder="Your full name"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        required
+                        placeholder="Your full name"
+                        disabled={isSigningUp}
+                        className={
+                          signUpErrors.fullName ? "border-red-500" : ""
+                        }
                       />
+                      {signUpErrors.fullName && (
+                        <p className="text-sm font-medium text-red-500">
+                          {signUpErrors.fullName}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -250,11 +404,17 @@ export default function Auth() {
                       <Input
                         id="signupEmail"
                         type="email"
+                        value={signUpEmail}
+                        onChange={(e) => setSignUpEmail(e.target.value)}
                         placeholder="your.email@varsity.edu"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
+                        disabled={isSigningUp}
+                        className={signUpErrors.email ? "border-red-500" : ""}
                       />
+                      {signUpErrors.email && (
+                        <p className="text-sm font-medium text-red-500">
+                          {signUpErrors.email}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -265,26 +425,103 @@ export default function Auth() {
                         <Lock className="h-4 w-4" />
                         Password
                       </Label>
-                      <Input
-                        id="signupPassword"
-                        type="password"
-                        placeholder="Minimum 6 characters"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
-                      <p className="text-xs text-gray-500">
-                        Password must be at least 6 characters long
-                      </p>
+                      <div className="relative">
+                        <Input
+                          id="signupPassword"
+                          type={showPassword ? "text" : "password"}
+                          value={signUpPassword}
+                          onChange={(e) => setSignUpPassword(e.target.value)}
+                          placeholder="Minimum 6 characters"
+                          disabled={isSigningUp}
+                          className={
+                            signUpErrors.password ? "border-red-500" : ""
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full"
+                          onClick={toggleShowPassword}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                          <span className="sr-only">
+                            {showPassword ? "Hide password" : "Show password"}
+                          </span>
+                        </Button>
+                      </div>
+                      {signUpErrors.password && (
+                        <p className="text-sm font-medium text-red-500">
+                          {signUpErrors.password}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="faculty">Faculty</Label>
+                        <select
+                          id="faculty"
+                          value={faculty}
+                          onChange={(e) => setFaculty(e.target.value)}
+                          disabled={isSigningUp}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="">Not specified</option>
+                          <option value="Arts">Arts</option>
+                          <option value="Commerce">
+                            Commerce, Law & Management
+                          </option>
+                          <option value="Engineering">
+                            Engineering & Built Environment
+                          </option>
+                          <option value="Health">Health Sciences</option>
+                          <option value="Science">Science</option>
+                          <option value="Humanities">Humanities</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="studyYear">Study Year</Label>
+                        <select
+                          id="studyYear"
+                          value={studyYear}
+                          onChange={(e) => setStudyYear(e.target.value)}
+                          disabled={isSigningUp}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="1">Year 1</option>
+                          <option value="2">Year 2</option>
+                          <option value="3">Year 3</option>
+                          <option value="4">Year 4 (Honours)</option>
+                          <option value="5">Year 5 (Masters)</option>
+                          <option value="6">Year 6+ (PhD)</option>
+                          <option value="staff">Staff Member</option>
+                        </select>
+                      </div>
                     </div>
                   </CardContent>
                   <CardFooter className="flex flex-col">
                     <Button
                       type="submit"
                       className="w-full"
-                      disabled={isLoading}
+                      disabled={isSigningUp}
+                      onClick={() =>
+                        console.log("Create Account button clicked")
+                      }
                     >
-                      {isLoading ? "Creating account..." : "Create Account"}
+                      {isSigningUp ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating account...
+                        </>
+                      ) : (
+                        "Create Account"
+                      )}
                     </Button>
                     <p className="mt-3 text-xs text-gray-500 text-center">
                       By creating an account, you agree to the
