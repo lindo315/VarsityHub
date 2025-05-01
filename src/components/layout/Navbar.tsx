@@ -18,6 +18,8 @@ import {
   Info,
   GraduationCap,
   Keyboard,
+  ChevronDown,
+  HomeIcon,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -37,27 +39,44 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState("");
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
 
   const navLinks = [
-    { title: "Home", href: "/", icon: <BookOpen className="h-4 w-4 mr-2" /> },
+    { title: "Home", href: "/", icon: <HomeIcon className="h-4 w-4 mr-2" /> },
     {
       title: "Events",
       href: "/events",
       icon: <Calendar className="h-4 w-4 mr-2" />,
+      dropdown: [
+        { title: "All Events", href: "/events" },
+        { title: "Academic Events", href: "/events?category=academic" },
+        { title: "Cultural Events", href: "/events?category=cultural" },
+        { title: "Social Events", href: "/events?category=social" },
+      ],
     },
     {
       title: "Sports",
       href: "/sports",
       icon: <Trophy className="h-4 w-4 mr-2" />,
+      dropdown: [
+        { title: "Teams", href: "/sports?tab=teams" },
+        { title: "Fixtures", href: "/sports?tab=fixtures" },
+        { title: "Results", href: "/sports?tab=results" },
+      ],
     },
     {
       title: "News",
       href: "/news",
       icon: <Newspaper className="h-4 w-4 mr-2" />,
+      dropdown: [
+        { title: "Latest News", href: "/news" },
+        { title: "Achievements", href: "/news?category=Achievements" },
+        { title: "Announcements", href: "/news?category=Announcements" },
+      ],
     },
     { title: "About", href: "/about", icon: <Info className="h-4 w-4 mr-2" /> },
   ];
@@ -115,40 +134,111 @@ const Navbar = () => {
     }
   };
 
+  const handleMouseEnter = (title: string) => {
+    setIsDropdownOpen(title);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDropdownOpen("");
+  };
+
   return (
     <>
       <header
         className={cn(
           "sticky top-0 z-40 w-full transition-all duration-200",
-          isScrolled
-            ? "bg-white/95 backdrop-blur border-b shadow-sm"
-            : "bg-background/95 backdrop-blur"
+          isScrolled ? "bg-white shadow-md" : "bg-white/95 backdrop-blur"
         )}
       >
+        {/* Top Bar - Only visible on larger screens */}
+        <div className="hidden lg:block bg-varsity-blue text-white py-1">
+          <div className="container flex justify-between items-center text-xs">
+            <div className="flex items-center space-x-4">
+              <a href="#" className="hover:text-varsity-gold transition-colors">
+                Student Portal
+              </a>
+              <a href="#" className="hover:text-varsity-gold transition-colors">
+                Library
+              </a>
+              <a href="#" className="hover:text-varsity-gold transition-colors">
+                Campus Map
+              </a>
+              <a href="#" className="hover:text-varsity-gold transition-colors">
+                Directory
+              </a>
+            </div>
+            <div className="flex items-center space-x-4">
+              {user ? (
+                <span>Welcome, {user.user_metadata?.full_name || "User"}</span>
+              ) : (
+                <>
+                  <Link
+                    to="/auth"
+                    className="hover:text-varsity-gold transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/auth?tab=signup"
+                    className="hover:text-varsity-gold transition-colors font-medium"
+                  >
+                    Create Account
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Navbar */}
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-6 md:gap-10">
             <Link to="/" className="flex items-center space-x-2">
               <div className="flex items-center">
-                <GraduationCap className="h-6 w-6 text-varsity-blue" />
+                <GraduationCap className="h-7 w-7 text-varsity-blue" />
                 <div className="font-bold text-2xl text-varsity-blue ml-1">
                   Varsity<span className="text-varsity-gold">Hub</span>
                 </div>
               </div>
             </Link>
-            <nav className="hidden md:flex gap-6">
+            <nav className="hidden md:flex gap-1">
               {navLinks.map((link, index) => (
-                <Link
+                <div
                   key={index}
-                  to={link.href}
-                  className={cn(
-                    "text-sm font-medium transition-colors hover:text-varsity-blue flex items-center",
-                    location.pathname === link.href
-                      ? "text-varsity-blue font-semibold"
-                      : "text-foreground/80"
-                  )}
+                  className="relative"
+                  onMouseEnter={() =>
+                    link.dropdown && handleMouseEnter(link.title)
+                  }
+                  onMouseLeave={handleMouseLeave}
                 >
-                  {link.title}
-                </Link>
+                  <Link
+                    to={link.href}
+                    className={cn(
+                      "text-sm font-medium px-3 py-2 rounded-md transition-colors hover:bg-gray-100 flex items-center",
+                      location.pathname === link.href
+                        ? "text-varsity-blue font-semibold"
+                        : "text-foreground/80"
+                    )}
+                  >
+                    {link.title}
+                    {link.dropdown && <ChevronDown className="ml-1 h-4 w-4" />}
+                  </Link>
+
+                  {link.dropdown && isDropdownOpen === link.title && (
+                    <div className="absolute left-0 top-full mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                      {link.dropdown.map((item, idx) => (
+                        <Link
+                          key={idx}
+                          to={item.href}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setIsDropdownOpen("")}
+                        >
+                          {item.title}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
             </nav>
           </div>
@@ -162,6 +252,9 @@ const Navbar = () => {
               aria-label="Search"
             >
               <Search className="h-5 w-5" />
+              {/* <kbd className="absolute pointer-events-none inline-flex items-center rounded border border-gray-200 bg-muted px-1 text-[10px] font-medium text-muted-foreground opacity-100 -bottom-6 right-[-3px]">
+                <span className="text-xs">⌘</span>K
+              </kbd> */}
             </Button>
 
             <Button
@@ -184,7 +277,7 @@ const Navbar = () => {
                     size="icon"
                     className="rounded-full hidden md:flex"
                   >
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-8 w-8 border border-gray-200">
                       <AvatarImage src={user.user_metadata?.avatar_url} />
                       <AvatarFallback className="bg-varsity-blue text-white">
                         {getUserInitials()}
@@ -193,12 +286,25 @@ const Navbar = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <span>{user.user_metadata?.full_name || "User"}</span>
+                      <span className="text-xs font-normal text-gray-500 truncate">
+                        {user.email}
+                      </span>
+                    </div>
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <Link to="/profile">
                     <DropdownMenuItem>
                       <User className="h-4 w-4 mr-2" />
                       Profile
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link to="/events">
+                    <DropdownMenuItem>
+                      <Calendar className="h-4 w-4 mr-2" />
+                      My Events
                     </DropdownMenuItem>
                   </Link>
                   <DropdownMenuItem>
@@ -215,7 +321,7 @@ const Navbar = () => {
             ) : (
               <Button
                 variant="default"
-                className="hidden md:flex"
+                className="hidden md:flex bg-varsity-blue hover:bg-varsity-blue/90"
                 onClick={() => navigate("/auth")}
               >
                 Sign In
@@ -233,7 +339,7 @@ const Navbar = () => {
                   <span className="sr-only">Toggle menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[280px] sm:w-[350px]">
+              <SheetContent side="right" className="w-full sm:w-[350px] pr-0">
                 <div className="px-1 py-6 grid gap-6">
                   <div className="flex items-center justify-between mb-4">
                     <Link
@@ -271,8 +377,8 @@ const Navbar = () => {
                   </Button>
 
                   {user && (
-                    <div className="flex items-center p-2">
-                      <Avatar className="h-9 w-9 mr-3">
+                    <div className="flex items-center p-2 bg-gray-50 rounded-lg">
+                      <Avatar className="h-10 w-10 mr-3 border border-gray-200">
                         <AvatarImage src={user.user_metadata?.avatar_url} />
                         <AvatarFallback className="bg-varsity-blue text-white">
                           {getUserInitials()}
@@ -291,20 +397,36 @@ const Navbar = () => {
 
                   <div className="grid gap-2">
                     {navLinks.map((link, index) => (
-                      <Link
-                        key={index}
-                        to={link.href}
-                        className={cn(
-                          "flex items-center rounded-md px-3 py-2 text-sm transition-colors",
-                          location.pathname === link.href
-                            ? "bg-accent text-accent-foreground font-medium"
-                            : "hover:bg-accent hover:text-accent-foreground"
+                      <div key={index} className="grid gap-1">
+                        <Link
+                          to={link.href}
+                          className={cn(
+                            "flex items-center rounded-md px-3 py-2 text-sm transition-colors",
+                            location.pathname === link.href
+                              ? "bg-accent text-accent-foreground font-medium"
+                              : "hover:bg-accent hover:text-accent-foreground"
+                          )}
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          {link.icon}
+                          {link.title}
+                        </Link>
+
+                        {link.dropdown && (
+                          <div className="ml-6 pl-2 border-l border-gray-200 space-y-1">
+                            {link.dropdown.map((item, idx) => (
+                              <Link
+                                key={idx}
+                                to={item.href}
+                                className="flex items-center rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                                onClick={() => setIsMenuOpen(false)}
+                              >
+                                {item.title}
+                              </Link>
+                            ))}
+                          </div>
                         )}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        {link.icon}
-                        {link.title}
-                      </Link>
+                      </div>
                     ))}
                   </div>
 
@@ -319,6 +441,14 @@ const Navbar = () => {
                           <User className="h-4 w-4 mr-2" />
                           Profile
                         </Link>
+                        <Link
+                          to="/events"
+                          className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <Calendar className="h-4 w-4 mr-2" />
+                          My Events
+                        </Link>
                         <Button
                           variant="ghost"
                           className="justify-start px-3 font-normal"
@@ -331,7 +461,7 @@ const Navbar = () => {
                     ) : (
                       <Button
                         variant="default"
-                        className="w-full"
+                        className="w-full bg-varsity-blue"
                         onClick={() => {
                           navigate("/auth");
                           setIsMenuOpen(false);
@@ -340,6 +470,39 @@ const Navbar = () => {
                         Sign In
                       </Button>
                     )}
+                  </div>
+
+                  {/* Mobile Quick Links */}
+                  <div className="pt-4 border-t">
+                    <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 px-2">
+                      Quick Links
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href="#"
+                        className="text-xs rounded p-2 hover:bg-gray-100 text-gray-600"
+                      >
+                        Student Portal
+                      </a>
+                      <a
+                        href="#"
+                        className="text-xs rounded p-2 hover:bg-gray-100 text-gray-600"
+                      >
+                        Library
+                      </a>
+                      <a
+                        href="#"
+                        className="text-xs rounded p-2 hover:bg-gray-100 text-gray-600"
+                      >
+                        Campus Map
+                      </a>
+                      <a
+                        href="#"
+                        className="text-xs rounded p-2 hover:bg-gray-100 text-gray-600"
+                      >
+                        Directory
+                      </a>
+                    </div>
                   </div>
                 </div>
               </SheetContent>
